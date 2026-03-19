@@ -1,4 +1,4 @@
-# Credit-Score-Classification
+# 🏦 Credit-Score-Classification
 
 A full end-to-end machine learning pipeline for classifying credit scores into three categories — **Poor**, **Standard**, and **Good** — using structured financial and behavioral data.
 
