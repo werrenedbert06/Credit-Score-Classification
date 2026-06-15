@@ -1,208 +1,219 @@
-# 🏦 Credit-Score-Classification
+🏦 Credit Score Classification
 
-A full end-to-end machine learning pipeline for classifying credit scores into three categories — **Poor**, **Standard**, and **Good** — using structured financial and behavioral data.
+A comprehensive end-to-end machine learning project for classifying credit scores into Poor, Standard, and Good categories based on financial and behavioral data.
+📋 Table of Contents
 
----
+    Overview
 
-## 📋 Table of Contents
+    Dataset
 
-- [Overview](#overview)
-- [Dataset](#dataset)
-- [Project Structure](#project-structure)
-- [Pipeline Walkthrough](#pipeline-walkthrough)
-- [Models & Hyperparameter Tuning](#models--hyperparameter-tuning)
-- [Evaluation](#evaluation)
-- [Feature Importance & SHAP](#feature-importance--shap)
-- [Requirements](#requirements)
-- [How to Run](#how-to-run)
-- [Outputs](#outputs)
+    Project Structure
 
----
+    Pipeline Walkthrough
 
-## 📌 Overview
+    Models & Hyperparameter Tuning
 
-This project tackles a **multi-class classification problem** to predict an individual's credit score category based on financial behavior and demographics. The pipeline covers everything from raw data ingestion to model explainability.
+    Evaluation
 
-**Target Classes:**
+    Feature Importance Analysis
 
-| Class    | Description                        |
-|----------|------------------------------------|
-| Poor     | High-risk credit profile           |
-| Standard | Average credit profile             |
-| Good     | Low-risk, healthy credit profile   |
+    Requirements
 
----
+    How to Run
 
-## 📂 Dataset
+📌 Overview
 
-| Property        | Details                        |
-|-----------------|--------------------------------|
-| File            | `Credit Score.csv`             |
-| Delimiter       | `,`                            |
-| Target Column   | `Credit_Score`                 |
-| Key Features    | Age, Annual Income, Debt, Payment Behavior, Credit History, etc. |
+This project solves a multi-class classification problem to predict an individual's credit score category using financial behavior, demographics, and credit history. The pipeline covers data ingestion, cleaning, EDA, preprocessing, modeling, and evaluation.
 
-**Columns Dropped (non-informative identifiers):**
-`ID`, `Customer_ID`, `Month`, `Name`, `SSN`
+Target Classes:
 
----
+    Poor (0): High-risk credit profile
 
-## 🗂 Project Structure
+    Standard (1): Average credit profile
 
-```
+    Good (2): Low-risk, healthy credit profile
+
+📂 Dataset
+Property	Details
+File	data_C.csv
+Delimiter	,
+Rows	25,000
+Columns (raw)	29
+Target Column	Credit_Score
+
+Key Features:
+
+    Demographics: Age, Occupation, Annual Income, Monthly Inhand Salary
+
+    Financial: Num_Bank_Accounts, Num_Credit_Card, Interest_Rate, Num_of_Loan
+
+    Behavioral: Delay_from_due_date, Num_of_Delayed_Payment, Payment_Behaviour
+
+    Credit History: Credit_History_Age, Credit_Mix, Payment_of_Min_Amount
+
+    Debt & Balance: Outstanding_Debt, Credit_Utilization_Ratio, Monthly_Balance
+
+Columns Dropped (non-informative identifiers):
+Unnamed: 0, ID, Customer_ID, Name, SSN
+🗂 Project Structure
+text
+
 credit-score-classification/
 │
-├── Credit Score.csv               # Raw dataset
-├── credit_score_notebook.ipynb    # Main notebook
-│
-└── outputs/
-    ├── LGBM_credit_score.joblib   # Saved best model
-    ├── feature_importance.csv     # Top feature importances
-    └── predictions.csv            # Actual vs Predicted on test set
-```
+├── data_C.csv              # Raw dataset
+└── notebook.ipynb          # Main analysis notebook (all code included)
 
----
+🔧 Pipeline Walkthrough
+1. 🧹 Data Cleaning & Type Casting
 
-## 🔧 Pipeline Walkthrough
+    Type Casting: Strips non-numeric characters from columns like Age, Annual_Income, Num_of_Loan, Num_of_Delayed_Payment, Outstanding_Debt, Changed_Credit_Limit, Amount_invested_monthly and converts to numeric.
 
-### 1. 🧹 Data Preprocessing & Cleaning
+    Credit History Parsing: Converts string format (e.g., "17 Years and 11 Months") into total months.
 
-- **Type Casting**: Strips non-numeric characters and coerces columns like `Age`, `Annual_Income`, `Outstanding_Debt`, etc. to numeric.
-- **Credit History Age**: Parsed from string format (e.g., `"3 Years 4 Months"`) into total months.
-- **Noisy Values Replaced**: `'_______'` → `Unknown`, `'_'` → `NaN`, `'!@9#%8'` → `NaN`, `'NM'` → `NaN`.
-- **Outlier Filtering**: Hard rules applied (e.g., Age 18–80, Interest Rate ≤ 100, Credit History ≤ Age × 12).
-- **Winsorization**: 1st–99th percentile clipping on 11 numerical columns to suppress extreme outliers.
+    Noisy Value Replacement:
 
-### 2. 📊 Exploratory Data Analysis (EDA)
+        '_______' → NaN (Occupation)
 
-- **Target Distribution**: Class balance check with imbalance ratio.
-- **KDE Plots**: Distribution per class for 8 key numerical features.
-- **Correlation Heatmap**: Pairwise correlation among all numerical features.
-- **Stacked Bar Charts**: Relationship between categorical features and credit score.
-- **Kruskal-Wallis Test**: Statistical significance of each feature across classes.
+        '_' → NaN (Credit_Mix)
 
-### 3. ⚙️ Feature Engineering (Custom Transformer: `CFE`)
+        'NM' → NaN (Payment_of_Min_Amount)
 
-11 domain-informed features are created inside a scikit-learn compatible custom transformer:
+        '!@9#%8' → NaN (Payment_Behaviour)
 
-| Feature              | Formula / Logic                                    |
-|----------------------|----------------------------------------------------|
-| `Debt_to_Income`     | `Outstanding_Debt / (Annual_Income + 1)`           |
-| `EMI_to_Salary`      | `Total_EMI_per_month / (Monthly_Inhand_Salary + 1)`|
-| `Debt_per_Loan`      | `Outstanding_Debt / (Num_of_Loan + 1)`             |
-| `Credit_Risk_Score`  | `Credit_Utilization_Ratio × Interest_Rate`         |
-| `Delay_per_History`  | `Num_of_Delayed_Payment / (Credit_History_Age + 1)`|
-| `Delay_Ratio`        | `Delay_from_due_date / (Credit_History_Age + 1)`   |
-| `Investment_Rate`    | `Amount_invested_monthly / (Monthly_Inhand_Salary + 1)` |
-| `Savings_after_EMI`  | `Monthly_Balance - Total_EMI_per_month`            |
-| `Inquiry_per_History`| `Num_Credit_Inquiries / (Credit_History_Age + 1)`  |
-| `Loan_Diversity`     | `Type_of_Loan_Count / (Num_of_Loan + 1)`           |
-| `Income_Stability`   | `(Monthly_Inhand_Salary × 12) / (Annual_Income + 1)` |
+    Type_of_Loan: Keeps only the first loan type, replaces missing with NaN.
 
----
+    Outlier Handling: Hard caps applied (Age 18–100, Num_Bank_Accounts 0–20, Interest_Rate 0–100, etc.) and winsorization using 1st–99th percentiles.
 
-## 🤖 Models & Hyperparameter Tuning
+2. 📊 Exploratory Data Analysis (EDA)
 
-Five models are benchmarked, each wrapped in a dedicated scikit-learn `Pipeline`:
+    Target Distribution:
 
-| Model                    | Preprocessing Strategy                        |
-|--------------------------|-----------------------------------------------|
-| `RandomForestClassifier` | Impute → Scale → OneHotEncode                 |
-| `XGBClassifier`          | Impute → Scale → OneHotEncode                 |
-| `LGBMClassifier`         | Impute → Scale → OneHotEncode                 |
-| `CatBoostClassifier`     | Impute only (native categorical support)      |
-| `HistGradientBoosting`   | Impute → OrdinalEncode (missing value native) |
+        Standard: 13,282 (53.1%)
 
-**Tuning Strategy:**
+        Poor: 7,268 (29.1%)
 
-- **Method**: `RandomizedSearchCV` with 30 iterations per model
-- **Cross-Validation**: `StratifiedKFold` (5 folds, shuffled)
-- **Scoring Metric**: `roc_auc_ovr` (One-vs-Rest AUC)
-- **Parallelization**: `n_jobs=-1`
+        Good: 4,450 (17.8%)
 
----
+        Imbalance detected → class_weight='balanced' used in modeling
 
-## 📈 Evaluation
+    Correlation Analysis (Spearman):
 
-The best model is selected based on **ROC AUC (OVR)** on the test set and evaluated using:
+        Positive correlation with Credit Score: Credit_History_Age_Months, Monthly_Inhand_Salary, Monthly_Balance
 
-- Accuracy, Precision, Recall, F1 Macro
-- ROC AUC (multi-class OVR)
-- Classification Report (per-class breakdown)
-- Confusion Matrix
-- Error Pattern Analysis (which classes get misclassified into which)
+        Negative correlation: Outstanding_Debt, Interest_Rate, Num_of_Delayed_Payment
 
----
+        Near-zero correlation: Credit_Utilization_Ratio, Total_EMI_per_month
 
-## 🔍 Feature Importance & SHAP
+    Distribution Checks: Histogram + Boxplot for all numerical features revealed right-skewed distributions with outliers → Median imputation chosen for robustness.
 
-### Feature Importance
-Top 10 features from the best model's `feature_importances_` attribute, normalized and visualized as a horizontal bar chart.
+3. ⚙️ Preprocessing
 
-### SHAP Analysis
-- **Explainer**: `shap.TreeExplainer` (falls back to `KernelExplainer` if needed)
-- **Sample**: 500 random test samples
-- **Plots**:
-  - **Beeswarm (dot)**: Feature impact distribution for the `Poor` class
-  - **Bar**: Mean absolute SHAP values (top 10 features) for the `Poor` class
+Preprocessing Pipeline (using ColumnTransformer):
+Feature Type	Columns	Transformations
+Numerical	17 columns	SimpleImputer(strategy='median') → StandardScaler()
+Ordinal	Credit_Mix, Payment_of_Min_Amount	SimpleImputer(strategy='most_frequent') → OrdinalEncoder(categories=[['Bad','Standard','Good'], ['No','Yes']], handle_unknown='use_encoded_value', unknown_value=-1)
+Nominal	Month, Occupation, Type_of_Loan, Payment_Behaviour	SimpleImputer(strategy='most_frequent') → OneHotEncoder(handle_unknown='ignore', sparse_output=False)
 
----
+Train-Test Split: 80% train, 20% test, stratified by target.
+🤖 Models & Hyperparameter Tuning
 
-## 📦 Requirements
+Three models were benchmarked using 5-fold cross-validation with F1 Macro scoring (due to class imbalance).
+Random Forest (Best Model)
+Experiment	Parameters	CV F1 Mean
+RF-5	n_estimators=200, criterion='entropy', class_weight='balanced'	0.6981
+RF-3	n_estimators=300, criterion='gini'	0.6967
+RF-2	n_estimators=200, criterion='gini'	0.6945
+XGBoost
+Experiment	Parameters	CV F1 Mean
+XGB-4	n_estimators=100, max_depth=8, learning_rate=0.1	0.6868
+XGB-2	n_estimators=200, max_depth=6, learning_rate=0.1	0.6859
+HistGradientBoosting
+Experiment	Parameters	CV F1 Mean
+HGB-4	max_iter=200, learning_rate=0.05	0.6838
 
-```bash
-pip install pandas numpy matplotlib seaborn scipy scikit-learn xgboost lightgbm catboost shap joblib
-```
+Best Model: Random Forest (RF-5) with CV F1 Macro = 0.6981
+📈 Evaluation (Test Set)
 
-> Python 3.8+ recommended.
+Classification Report (RF-5):
+Class	Precision	Recall	F1-score	Support
+Poor	0.75	0.72	0.73	1,454
+Standard	0.76	0.77	0.77	2,656
+Good	0.62	0.62	0.62	890
 
----
+    Accuracy: 0.73
 
-## ▶️ How to Run
+    Macro F1: 0.71
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/werrenedbert06/Credit-Score-Classification.git
-   cd Credit-Score-Classification
-   ```
+    Weighted F1: 0.73
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+Confusion Matrix Insights:
 
-3. **Place the dataset**
-   
-   Ensure `Credit Score.csv` is in the root directory.
+    Poor → misclassified as Standard (328), rarely as Good
 
-4. **Run the notebook**
-   ```bash
-   jupyter notebook credit_score_notebook.ipynb
-   ```
+    Good → often misclassified as Standard (234)
 
----
+    Standard → most stable predictions
 
-## 💾 Outputs
+🔍 Feature Importance Analysis
 
-After running the full notebook, the following files will be saved to the `outputs/` directory:
+Top features by importance (Random Forest):
 
-| File                        | Description                                  |
-|-----------------------------|----------------------------------------------|
-| `LGBM_credit_score.joblib`  | Best trained model (serialized with joblib)  |
-| `feature_importance.csv`    | Top 10 normalized feature importance scores  |
-| `predictions.csv`           | Test set predictions vs actual labels        |
+    Outstanding_Debt
 
----
+    Annual_Income
 
-## 🧠 Key Design Decisions
+    Interest_Rate
 
-- **Custom Transformer (`CFE`)**: Integrates feature engineering directly into the scikit-learn pipeline, preventing data leakage.
-- **Separate Pipelines per Model**: Each model has a tailored preprocessing strategy (e.g., CatBoost handles categoricals natively).
-- **Stratified CV**: Ensures each fold maintains class distribution, critical for imbalanced targets.
-- **Winsorization over Dropping**: Preserves data volume while controlling extreme outlier influence.
+    Credit_History_Age_Months
 
----
+    Num_of_Loan
 
-## 📄 License
+    Age
+
+    Num_of_Delayed_Payment
+
+    Monthly_Inhand_Salary
+
+    Credit_Mix (encoded)
+
+    Amount_invested_monthly
+
+Key Insights:
+
+    High Outstanding_Debt and Interest_Rate push predictions toward Poor
+
+    Low Annual_Income and Monthly_Inhand_Salary correlate with Poor classification
+
+    Short credit history (Credit_History_Age_Months) contributes to Poor prediction
+
+📦 Requirements
+bash
+
+pip install pandas numpy matplotlib seaborn scipy scikit-learn xgboost
+
+    Python 3.8+ recommended.
+
+▶️ How to Run
+
+    Clone the repository
+    bash
+
+    git clone https://github.com/yourusername/credit-score-classification.git
+    cd credit-score-classification
+
+    Install dependencies
+    bash
+
+    pip install -r requirements.txt
+
+    Place the dataset
+    Ensure data_C.csv is in the root directory.
+
+    Run the notebook
+    bash
+
+    jupyter notebook notebook.ipynb
+
+📄 License
 
 This project is for educational and portfolio purposes. Feel free to fork and adapt.
